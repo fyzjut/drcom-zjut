@@ -1,11 +1,14 @@
 from time import sleep
-from subprocess import run, PIPE
 import requests
 import time
 import os
 import socket
 import re
 import getpass
+import base64
+
+# 自动登录文件的名称
+AUTO_LOGIN_FILE = 'auto_login'
 
 def get_host_ip():
     """获取本机IP地址"""
@@ -96,42 +99,121 @@ def get_valid_ip():
         else:
             print("\033[91m请输入 y 或 n\033[0m")
 
+def check_network_connection():
+    """使用HTTP请求检查网络连通性，替代ping命令"""
+    test_urls = [
+        "http://www.baidu.com",
+        "http://www.qq.com"
+    ]
+    
+    for url in test_urls:
+        try:
+            response = requests.get(url, timeout=5)
+            # 检查是否收到有效响应 (状态码200或302)
+            if response.status_code < 500:
+                return True
+        except:
+            continue
+    return False
+
+def save_auto_login(username, password, ip):
+    """保存自动登录信息（简单base64编码）"""
+    # 组合用户名、密码和IP，用冒号分隔
+    data = f"{username}:{password}:{ip}"
+    encoded = base64.b64encode(data.encode()).decode()
+    
+    try:
+        with open(AUTO_LOGIN_FILE, 'w') as f:
+            f.write(encoded)
+        print(f"自动登录信息已保存到 {AUTO_LOGIN_FILE}")
+        print(f"如需取消自动登录，请删除 {AUTO_LOGIN_FILE} 文件")
+    except Exception as e:
+        print(f"保存自动登录信息失败: {str(e)}")
+
+def load_auto_login():
+    """加载自动登录信息"""
+    if not os.path.exists(AUTO_LOGIN_FILE):
+        return None, None, None
+    
+    try:
+        with open(AUTO_LOGIN_FILE, 'r') as f:
+            encoded = f.read().strip()
+        # 解码并分割用户名、密码和IP
+        decoded = base64.b64decode(encoded.encode()).decode()
+        username, password, ip = decoded.split(':', 2)
+        return username, password, ip
+    except Exception as e:
+        print(f"读取自动登录信息失败: {str(e)}")
+        print("请手动输入登录信息")
+        return None, None, None
+
 def main():
     """主函数"""
-    # 交互式登录
     print("\n\033[94m==== 校园网认证助手 ====\033[0m")
+    
+    # 检查自动登录文件
+    auto_username, auto_password, auto_ip = load_auto_login()
+    
+    if auto_username and auto_password and auto_ip:
+        print(f"检测到自动登录文件 {AUTO_LOGIN_FILE}")
+        print(f"将使用保存的账号 [{auto_username}] 和IP [{auto_ip}] 自动登录")
+        print(f"如需取消自动登录，请删除 {AUTO_LOGIN_FILE} 文件")
+        
+        # 尝试自动登录
+        if login(auto_username, auto_password, auto_ip):
+            # 自动登录成功，进入主循环
+            cnt = 1
+            sleep_time = 900
+            try:
+                while True:
+                    now = time.strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    if check_network_connection():
+                        print(f'\033[95m{now}\033[0m: \033[92m网络正常\033[0m')
+                        sleep_time = 900
+                    else:
+                        print(f'\033[95m{now}\033[0m: \033[91m网络断开，尝试重连 [{cnt}]\033[0m')
+                        login(auto_username, auto_password, auto_ip)
+                        sleep_time = 60
+                        cnt += 1
+                    
+                    sleep(sleep_time)
+            except KeyboardInterrupt:
+                print("\n\033[93m程序终止，正在注销...\033[0m")
+                logout(auto_ip)
+            return
+    
+    # 交互式登录
     user_account = input("请输入校园网账号: ").strip()
     user_password = getpass.getpass("请输入密码: ").strip()
     local_ip = get_valid_ip()
+        
+    # 询问是否保存登录信息
+    save_choice = input("下次自动登录? (y/n): ").strip().lower()
+    if save_choice == 'y':
+        save_auto_login(user_account, user_password, local_ip)
     
     # 首次登录尝试
     if not login(user_account, user_password, local_ip):
         print("\033[91m首次登录失败，请检查网络连接和账号信息\033[0m")
         return
-    
-    # 网络检测设置
-    cnt = 1
-    sleep_time = 600
-    if os.name == "nt":
-        cmdline = "ping www.baidu.com -n 3"
-    else:
-        cmdline = "ping www.baidu.com -c 3"
-    
+
     # 主循环
+    cnt = 1
+    sleep_time = 900
+    
     try:
         while True:
-            r = run(cmdline, stdout=PIPE, stderr=PIPE, stdin=PIPE, shell=True)
             now = time.strftime("%Y-%m-%d %H:%M:%S")
             
-            if r.returncode:
-                print(f'\033[95m{now}\033[0m: '
-                      f'\033[91m网络断开，尝试重连 [{cnt}]\033[0m')
-                login(user_account, user_password, local_ip)
-                sleep_time = 10
-                cnt += 1
-            else:
+            if check_network_connection():
                 print(f'\033[95m{now}\033[0m: \033[92m网络正常\033[0m')
+                sleep_time = 900
+            else:
+                print(f'\033[95m{now}\033[0m: \033[91m网络断开，尝试重连 [{cnt}]\033[0m')
+                login(user_account, user_password, local_ip)
                 sleep_time = 60
+                cnt += 1
             
             sleep(sleep_time)
     except KeyboardInterrupt:
