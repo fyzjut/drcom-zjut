@@ -148,40 +148,45 @@ def load_auto_login():
         return None, None, None
 
 def main():
-    """主函数"""
+
+    
+
     print("\n\033[94m==== 校园网认证助手 ====\033[0m")
     
+
     # 检查自动登录文件
-    auto_username, auto_password, auto_ip = load_auto_login()
-    
-    if auto_username and auto_password and auto_ip:
+
+    if os.path.exists(AUTO_LOGIN_FILE):
+
         print(f"检测到自动登录文件 {AUTO_LOGIN_FILE}")
         print(f"将使用保存的账号 [{auto_username}] 和IP [{auto_ip}] 自动登录")
         print(f"如需取消自动登录，请删除 {AUTO_LOGIN_FILE} 文件")
-        
+        # 读取信息
+        auto_username, auto_password, auto_ip = load_auto_login()
+
         # 尝试自动登录
-        if login(auto_username, auto_password, auto_ip):
-            # 自动登录成功，进入主循环
-            cnt = 1
-            sleep_time = 900
-            try:
-                while True:
-                    now = time.strftime("%Y-%m-%d %H:%M:%S")
-                    
-                    if check_network_connection():
-                        print(f'\033[95m{now}\033[0m: \033[92m网络正常\033[0m')
-                        sleep_time = 900
-                    else:
-                        print(f'\033[95m{now}\033[0m: \033[91m网络断开，尝试重连 [{cnt}]\033[0m')
-                        login(auto_username, auto_password, auto_ip)
-                        sleep_time = 60
-                        cnt += 1
-                    
-                    sleep(sleep_time)
-            except KeyboardInterrupt:
-                print("\n\033[93m程序终止，正在注销...\033[0m")
-                logout(auto_ip)
-            return
+        # 自动登录成功，进入主循环
+        login(auto_username, auto_password, auto_ip)
+        cnt = 1
+        sleep_time = 900
+        try:
+            while True:
+                now = time.strftime("%Y-%m-%d %H:%M:%S")
+                
+                if check_network_connection():
+                    print(f'\033[95m{now}\033[0m: \033[92m网络正常\033[0m')
+                    sleep_time = 900
+                else:
+                    print(f'\033[95m{now}\033[0m: \033[91m网络断开，尝试重连 [{cnt}]\033[0m')
+                    login(auto_username, auto_password, auto_ip)
+                    sleep_time = 60
+                    cnt += 1
+                
+                sleep(sleep_time)
+        except KeyboardInterrupt:
+            print("\n\033[93m程序终止，正在注销...\033[0m")
+            logout(auto_ip)
+        return
     
     # 交互式登录
     user_account = input("请输入校园网账号: ").strip()
