@@ -108,9 +108,12 @@ def check_network_connection():
     
     for url in test_urls:
         try:
+
+            now = time.strftime("%Y-%m-%d %H:%M:%S")
             response = requests.get(url, timeout=5)
             # 检查是否收到有效响应 (状态码200或302)
-            if response.status_code < 500:
+            print(f'\033[95m{now}\033[0m: \033[92mResponse code {response.status_code}\033[0m')
+            if response.status_code ==200 or response.status_code ==302:
                 return True
         except:
             continue
@@ -158,11 +161,26 @@ def main():
 
     if os.path.exists(AUTO_LOGIN_FILE):
 
+        # 读取信息
+        auto_username, auto_password, auto_ip = load_auto_login()
+        now = time.strftime("%Y-%m-%d %H:%M:%S")
+        local_ip = auto_ip
         print(f"检测到自动登录文件 {AUTO_LOGIN_FILE}")
         print(f"将使用保存的账号 [{auto_username}] 和IP [{auto_ip}] 自动登录")
         print(f"如需取消自动登录，请删除 {AUTO_LOGIN_FILE} 文件")
-        # 读取信息
-        auto_username, auto_password, auto_ip = load_auto_login()
+        
+
+        print(f'\033[95m{now}\033[0m: \033[92mNetwork Checking...\033[0m')
+        if check_network_connection():
+            print(f'\033[95m{now}\033[0m: \033[92mNetwork Okay! Logout and connect!\033[0m')
+            logout(local_ip)
+
+        else:
+            print(f'\033[95m{now}\033[0m: \033[91mNetwork Not Okay! Trying to connect..[{cnt}]\033[0m')
+
+
+
+
 
         # 尝试自动登录
         # 自动登录成功，进入主循环
@@ -172,7 +190,6 @@ def main():
         try:
             while True:
                 now = time.strftime("%Y-%m-%d %H:%M:%S")
-                
                 if check_network_connection():
                     print(f'\033[95m{now}\033[0m: \033[92m网络正常\033[0m')
                     sleep_time = 900
@@ -191,7 +208,7 @@ def main():
     # 交互式登录
     user_account = input("请输入校园网账号: ").strip()
     user_password = getpass.getpass("请输入密码: ").strip()
-    local_ip = get_valid_ip()
+    
         
     # 询问是否保存登录信息
     save_choice = input("下次自动登录? (y/n): ").strip().lower()
