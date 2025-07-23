@@ -176,7 +176,7 @@ def main():
             logout(local_ip)
 
         else:
-            print(f'\033[95m{now}\033[0m: \033[91mNetwork Not Okay! Trying to connect..[{cnt}]\033[0m')
+            print(f'\033[95m{now}\033[0m: \033[91mNetwork Not Okay! Trying to connect...\033[0m')
 
 
 
