@@ -102,8 +102,8 @@ def get_valid_ip():
 def check_network_connection():
     """使用HTTP请求检查网络连通性，替代ping命令"""
     test_urls = [
-        "http://www.baidu.com",
-        "http://www.qq.com"
+        "https://www.baidu.com",
+        "https://www.qq.com"
     ]
     
     for url in test_urls:
